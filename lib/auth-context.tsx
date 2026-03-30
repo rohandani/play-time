@@ -6,19 +6,11 @@ type User = { username: string; avatar: string };
 
 type AuthContextType = {
   user: User | null;
-  login: (username: string, password: string) => boolean;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
-const USERS: Record<string, { password: string; avatar: string }> = {
-  alex: { password: "alex123", avatar: "🦊" },
-  sam: { password: "sam123", avatar: "🐼" },
-  mia: { password: "mia123", avatar: "🦄" },
-  leo: { password: "leo123", avatar: "🦁" },
-  zoe: { password: "zoe123", avatar: "🐱" },
-};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -28,16 +20,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (saved) setUser(JSON.parse(saved));
   }, []);
 
-  const login = (username: string, password: string): boolean => {
-    const key = username.toLowerCase();
-    const found = USERS[key];
-    if (found && found.password === password) {
-      const u = { username: key, avatar: found.avatar };
+  const login = async (username: string, password: string): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!res.ok) return false;
+
+      const data = await res.json();
+      const u: User = { username: data.username, avatar: data.avatar };
       setUser(u);
       localStorage.setItem("kidplay-user", JSON.stringify(u));
       return true;
+    } catch {
+      return false;
     }
-    return false;
   };
 
   const logout = () => {

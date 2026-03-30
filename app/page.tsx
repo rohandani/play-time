@@ -19,16 +19,14 @@ export default function LoginPage() {
     if (user) router.push("/games");
   }, [user, router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    setTimeout(() => {
-      const ok = login(username, password);
-      if (!ok) setError("Oops! Wrong username or password 😅");
-      else router.push("/games");
-      setLoading(false);
-    }, 500);
+    const ok = await login(username, password);
+    if (!ok) setError("Oops! Wrong username or password 😅");
+    else router.push("/games");
+    setLoading(false);
   };
 
   return (
