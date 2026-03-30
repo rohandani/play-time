@@ -3,7 +3,7 @@
 import { GameLayout } from "@/components/game-layout";
 import { useAuth } from "@/lib/auth-context";
 import { useSocket } from "@/lib/socket-context";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 type Cell = "X" | "O" | null;
@@ -49,6 +49,14 @@ function computerMove(board: Cell[]): number {
 }
 
 export default function TicTacToePage() {
+  return (
+    <Suspense>
+      <TicTacToeInner />
+    </Suspense>
+  );
+}
+
+function TicTacToeInner() {
   const { user } = useAuth();
   const { socket, onlineUsers, connected } = useSocket();
   const searchParams = useSearchParams();
