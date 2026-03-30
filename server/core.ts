@@ -122,10 +122,17 @@ type GameStartFn = (
     player2: { socketId: string; username: string }
 ) => void;
 
+type PreStartFn = (socketId: string, meta: Record<string, unknown>) => void;
+
 const gameStartHandlers = new Map<string, GameStartFn>();
+const preStartHandlers = new Map<string, PreStartFn>();
 
 export function registerGameStart(gameType: string, handler: GameStartFn) {
     gameStartHandlers.set(gameType, handler);
+}
+
+export function registerPreStart(gameType: string, handler: PreStartFn) {
+    preStartHandlers.set(gameType, handler);
 }
 
 // --- Core Socket Handlers ---
@@ -165,11 +172,19 @@ export function registerCore(io: Server, socket: Socket) {
         console.log(`${fromUsername} invited ${toUsername} to ${gameType}`);
     });
 
-    socket.on("accept-invite", ({ inviteId }: { inviteId: string }) => {
+    socket.on("accept-invite", ({ inviteId, meta }: { inviteId: string; meta?: Record<string, unknown> }) => {
         const invite = getInvite(inviteId);
         if (!invite || invite.to.socketId !== socket.id) return;
 
         deleteInvite(inviteId);
+
+        // Let game module process any metadata (e.g. character) before room creation
+        if (meta) {
+            const preStart = preStartHandlers.get(invite.gameType);
+            if (preStart) {
+                preStart(socket.id, meta);
+            }
+        }
 
         // Directly call the game's start handler to create the room
         const startGame = gameStartHandlers.get(invite.gameType);

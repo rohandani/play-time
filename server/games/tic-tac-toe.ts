@@ -7,15 +7,26 @@ import {
   getRoom,
   deleteRoom,
   registerGameStart,
+  registerPreStart,
 } from "../core";
 
+type TttPlayer = {
+  socketId: string;
+  username: string;
+  symbol: "X" | "O";
+  character: string; // emoji chosen by player
+};
+
 type TttState = {
-  players: { socketId: string; username: string; symbol: "X" | "O" }[];
+  players: TttPlayer[];
   board: (string | null)[];
   currentTurn: "X" | "O";
 };
 
 const GAME_TYPE = "tic-tac-toe";
+
+// Store chosen characters per socket (set before match starts)
+const playerCharacters = new Map<string, string>();
 
 function startTttRoom(
   io: Server,
@@ -23,9 +34,9 @@ function startTttRoom(
   player2: { socketId: string; username: string }
 ) {
   const roomId = `ttt-${Date.now()}`;
-  const players: TttState["players"] = [
-    { ...player1, symbol: "X" },
-    { ...player2, symbol: "O" },
+  const players: TttPlayer[] = [
+    { ...player1, symbol: "X", character: playerCharacters.get(player1.socketId) || "❌" },
+    { ...player2, symbol: "O", character: playerCharacters.get(player2.socketId) || "⭕" },
   ];
 
   createRoom<TttState>(roomId, players, {
@@ -39,16 +50,31 @@ function startTttRoom(
 
   io.to(roomId).emit("ttt-match-found", {
     roomId,
-    players: players.map((p) => ({ username: p.username, symbol: p.symbol })),
+    players: players.map((p) => ({
+      username: p.username,
+      symbol: p.symbol,
+      character: p.character,
+    })),
   });
 
-  console.log(`TTT Match: ${player1.username} vs ${player2.username} in ${roomId}`);
+  console.log(`TTT Match: ${player1.username}(${players[0].character}) vs ${player2.username}(${players[1].character}) in ${roomId}`);
 }
 
-// Register so core invite system can start a TTT game directly
 registerGameStart(GAME_TYPE, startTttRoom);
 
+// Handle character set from accept-invite meta
+registerPreStart(GAME_TYPE, (socketId, meta) => {
+  if (meta.character && typeof meta.character === "string") {
+    playerCharacters.set(socketId, meta.character);
+  }
+});
+
 export function registerTicTacToe(io: Server, socket: Socket) {
+  // Player sets their character before finding a match
+  socket.on("ttt-set-character", (character: string) => {
+    playerCharacters.set(socket.id, character);
+  });
+
   // Random matchmaking
   socket.on("ttt-find-match", () => {
     const username = getUsername(socket.id);
@@ -60,16 +86,13 @@ export function registerTicTacToe(io: Server, socket: Socket) {
       startTttRoom(io, opponent, { socketId: socket.id, username });
     } else {
       socket.emit("ttt-waiting");
-      console.log(`${username} waiting for TTT match`);
     }
   });
 
-  // Cancel matchmaking
   socket.on("ttt-cancel-match", () => {
     leaveQueue(GAME_TYPE, socket.id);
   });
 
-  // Make a move
   socket.on("ttt-move", ({ roomId, index }: { roomId: string; index: number }) => {
     const room = getRoom<TttState>(roomId);
     if (!room) return;
@@ -85,11 +108,9 @@ export function registerTicTacToe(io: Server, socket: Socket) {
     io.to(roomId).emit("ttt-update", {
       board: state.board,
       currentTurn: state.currentTurn,
-      lastMove: { index, symbol: player.symbol, username: player.username },
     });
   });
 
-  // Play again
   socket.on("ttt-play-again", ({ roomId }: { roomId: string }) => {
     const room = getRoom<TttState>(roomId);
     if (!room) return;
@@ -102,11 +123,14 @@ export function registerTicTacToe(io: Server, socket: Socket) {
     });
 
     io.to(roomId).emit("ttt-restart", {
-      players: state.players.map((p) => ({ username: p.username, symbol: p.symbol })),
+      players: state.players.map((p) => ({
+        username: p.username,
+        symbol: p.symbol,
+        character: p.character,
+      })),
     });
   });
 
-  // Leave game
   socket.on("ttt-leave", ({ roomId }: { roomId: string }) => {
     const room = getRoom<TttState>(roomId);
     if (!room) return;
@@ -117,5 +141,6 @@ export function registerTicTacToe(io: Server, socket: Socket) {
 
   socket.on("disconnect", () => {
     leaveQueue(GAME_TYPE, socket.id);
+    playerCharacters.delete(socket.id);
   });
 }

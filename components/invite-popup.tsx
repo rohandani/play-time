@@ -50,12 +50,9 @@ export function InvitePopup() {
     setInvites((prev) => prev.filter((i) => i.inviteId !== invite.inviteId));
     const game = GAME_INFO[invite.gameType];
     if (game) {
-      // Navigate first, then accept after a tick so the game page is mounted
-      // and listening for the match-found event
-      router.push(game.path);
-      setTimeout(() => {
-        socket?.emit("accept-invite", { inviteId: invite.inviteId });
-      }, 300);
+      // Navigate to game page with pending invite — let the game page
+      // show character picker first, then accept after picking
+      router.push(`${game.path}?inviteId=${invite.inviteId}`);
     } else {
       socket?.emit("accept-invite", { inviteId: invite.inviteId });
     }
