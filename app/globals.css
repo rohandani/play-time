@@ -128,3 +128,14 @@
     @apply font-sans;
   }
 }
+
+@keyframes bounce-once {
+  0% { transform: translateY(-20px); opacity: 0; }
+  40% { transform: translateY(4px); opacity: 1; }
+  60% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+
+.animate-bounce-once {
+  animation: bounce-once 0.5s ease-out;
+}
