@@ -2,6 +2,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { registerCore } from "./core";
 import { registerTicTacToe } from "./games/tic-tac-toe";
+import { registerChess } from "./games/chess";
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
@@ -16,7 +17,7 @@ io.on("connection", (socket) => {
 
   // Games
   registerTicTacToe(io, socket);
-  // registerChess(io, socket);    — add later
+  registerChess(io, socket);
   // registerLudo(io, socket);     — add later
 });
 

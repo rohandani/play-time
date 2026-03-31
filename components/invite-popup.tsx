@@ -39,10 +39,12 @@ export function InvitePopup() {
 
     socket.on("game-invite", onInvite);
     socket.on("ttt-match-found", onMatchOrCleanup);
+    socket.on("chess-match-found", onMatchOrCleanup);
 
     return () => {
       socket.off("game-invite", onInvite);
       socket.off("ttt-match-found", onMatchOrCleanup);
+      socket.off("chess-match-found", onMatchOrCleanup);
     };
   }, [socket]);
 
